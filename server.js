@@ -1,53 +1,59 @@
 const express = require("express");
-const bodyParser = require("body-parser");
-const mqtt = require("mqtt");
-
+const cors = require("cors");
 const app = express();
-app.use(bodyParser.json());
+const port = 3000;
 
-// Konfigurasi MQTT broker
-const brokerUrl = "mqtt://broker.hivemq.com:1883"; // Sesuaikan URL broker kamu
-const client = mqtt.connect(brokerUrl);
+// Mengaktifkan CORS untuk semua origin
+app.use(
+  cors({
+    origin: "*",
+  })
+);
 
-// Event ketika terhubung ke broker
-client.on("connect", () => {
-  console.log("Terhubung ke broker MQTT");
-});
+// Fungsi untuk menghasilkan data acak
+const generateRandomData = () => {
+  const nilai_suhu_max_humid_max = [];
 
-// Variabel untuk menyimpan data terakhir yang dikirim
-let lastSentData = null;
-
-app.get("/get-data", (req, res) => {
-  if (lastSentData) {
-    res.status(200).json({ success: true, data: lastSentData });
-  } else {
-    res
-      .status(404)
-      .json({ success: false, message: "Belum ada data yang dikirim" });
+  // Membuat data acak hanya 2 item untuk nilai_suhu_max_humid_max
+  for (let i = 0; i < 2; i++) {
+    // Mengatur jumlah data menjadi 2
+    nilai_suhu_max_humid_max.push({
+      idx: Math.floor(Math.random() * 1000),
+      suhu: Math.floor(Math.random() * 20) + 20,
+      humid: Math.floor(Math.random() * 50) + 50,
+      kecerahan: Math.floor(Math.random() * 50),
+      timestamp: new Date(new Date().getTime() - i * 3600000)
+        .toISOString()
+        .replace("T", " ")
+        .substring(0, 19), // Mengurangi waktu 1 jam setiap item
+    });
   }
+
+  return {
+    suhumax: Math.floor(Math.random() * 20) + 20,
+    suhummin: Math.floor(Math.random() * 20) + 10,
+    suhurata: parseFloat((Math.random() * 15 + 20).toFixed(2)),
+    nilai_suhu_max_humid_max: nilai_suhu_max_humid_max, // 2 data saja
+    month_year_max: [
+      {
+        month_year: `${Math.floor(Math.random() * 12) + 1}-${
+          Math.floor(Math.random() * 5) + 2010
+        }`,
+      },
+      {
+        month_year: `${Math.floor(Math.random() * 12) + 1}-${
+          Math.floor(Math.random() * 5) + 2010
+        }`,
+      },
+    ],
+  };
+};
+
+app.get("/data", (req, res) => {
+  const data = generateRandomData();
+  res.json(data);
 });
 
-// Endpoint untuk menerima data dan mengirim ke MQTT
-app.post("/send-data", (req, res) => {
-  const { topic, message } = req.body;
-
-  // Simpan data yang diterima
-  lastSentData = { topic, message };
-
-  // Kirim data ke MQTT
-  client.publish(topic, message, (err) => {
-    if (err) {
-      return res.status(500).json({ error: "Gagal mengirim data ke MQTT" });
-    }
-    console.log(`Data terkirim ke topic "${topic}": ${message}`);
-    res
-      .status(200)
-      .json({ success: true, message: "Data terkirim ke MQTT dan API" });
-  });
-});
-
-// Jalankan server API
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server berjalan di http://localhost:${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
 });
